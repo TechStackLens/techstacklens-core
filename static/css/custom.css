@@ -1,0 +1,193 @@
+/* TechStackLens Custom Styles */
+
+/* Body and text */
+body {
+    color: #f8f9fa;
+    background-color: #343a40;
+}
+
+/* Card styling */
+.card {
+    margin-bottom: 20px;
+    border: none;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #2c3136;
+    border-bottom: 1px solid #444;
+    font-weight: 600;
+}
+
+.card-body {
+    background-color: #343a40;
+}
+
+/* Alert styling */
+.alert {
+    border: none;
+    border-radius: 6px;
+}
+
+/* Button enhancements */
+.btn {
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Form controls */
+.form-control {
+    background-color: #2c3136;
+    border-color: #444;
+    color: #f8f9fa;
+}
+
+.form-control:focus {
+    background-color: #2c3136;
+    border-color: #0d6efd;
+    color: #f8f9fa;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-select {
+    background-color: #2c3136;
+    border-color: #444;
+    color: #f8f9fa;
+}
+
+.form-select:focus {
+    background-color: #2c3136;
+    border-color: #0d6efd;
+    color: #f8f9fa;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Table styling */
+.table {
+    color: #f8f9fa;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.table-hover > tbody > tr:hover {
+    background-color: rgba(255, 255, 255, 0.075);
+}
+
+/* Navtabs styling */
+.nav-tabs {
+    border-bottom-color: #444;
+}
+
+.nav-tabs .nav-link {
+    color: #adb5bd;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    margin-right: 5px;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #f8f9fa;
+    border-color: transparent transparent #adb5bd transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: transparent;
+    border-color: transparent transparent #0d6efd transparent;
+}
+
+/* Accordion styling */
+.accordion-item {
+    background-color: #2c3136;
+    border-color: #444;
+}
+
+.accordion-button {
+    background-color: #2c3136;
+    color: #f8f9fa;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.accordion-button::after {
+    filter: invert(1);
+}
+
+/* Footer styling */
+footer {
+    background-color: #212529 !important;
+    border-top: 1px solid #444;
+}
+
+/* Code blocks */
+pre {
+    background-color: #212529;
+    padding: 15px;
+    border-radius: 6px;
+    color: #f8f9fa;
+    overflow-x: auto;
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.6em;
+}
+
+/* Visualization specific styles */
+#visualization-container svg {
+    background-color: #212529;
+    border-radius: 6px;
+}
+
+/* Custom icons and status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-success {
+    background-color: #198754;
+}
+
+.status-warning {
+    background-color: #ffc107;
+}
+
+.status-danger {
+    background-color: #dc3545;
+}
+
+/* Custom card hover effects */
+.card.bg-light {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card.bg-light:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}

@@ -1,0 +1,455 @@
+{% extends 'base.html' %}
+
+{% block title %}TechStackLens - Dependency Visualization{% endblock %}
+
+{% block head %}
+<style>
+    #visualization-container {
+        background-color: #2d3748;
+        border-radius: 5px;
+        overflow: hidden;
+        height: 700px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-right: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        margin-right: 5px;
+        border: 1px solid #555;
+        border-radius: 3px;
+    }
+    
+    .controls {
+        margin: 15px 0;
+    }
+    
+    .tooltip {
+        position: absolute;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        border-radius: 4px;
+        pointer-events: none;
+        font-size: 14px;
+        max-width: 300px;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-project-diagram me-2"></i>Dependency Visualization</h5>
+                <div>
+                    <a href="/download/dependency_graph.png" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-download me-1"></i>Download Image
+                    </a>
+                    <a href="/download/dependency_graph.html" class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="fas fa-download me-1"></i>Download HTML
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if html_content %}
+                    <div id="visualization-container">
+                        <iframe id="visualization-frame" style="width:100%; height:100%; border:none;" srcdoc="{{ html_content|safe }}"></iframe>
+                    </div>
+                {% elif graph_data %}
+                    <div class="controls">
+                        <div class="d-flex flex-wrap gap-2">
+                            <button id="reset" class="btn btn-outline-secondary">
+                                <i class="fas fa-sync-alt me-1"></i>Reset View
+                            </button>
+                            <select id="filter-type" class="form-select" style="width: auto;">
+                                <option value="all">All Node Types</option>
+                                <option value="host">Hosts</option>
+                                <option value="service">Services</option>
+                                <option value="site">Sites</option>
+                                <option value="binding">Bindings</option>
+                            </select>
+                            <select id="filter-role" class="form-select" style="width: auto;">
+                                <option value="all">All Roles</option>
+                                <option value="web">Web</option>
+                                <option value="middleware">Middleware</option>
+                                <option value="database">Database</option>
+                                <option value="cache">Cache</option>
+                                <option value="messaging">Messaging</option>
+                                <option value="directory">Directory</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="visualization-container">
+                        <!-- D3.js visualization will be rendered here -->
+                    </div>
+                    
+                    <div class="d-flex flex-wrap mt-4">
+                        <div class="me-4 mb-3">
+                            <h6>Node Types:</h6>
+                            <div class="d-flex flex-wrap">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: lightblue;"></div>
+                                    <span>Host</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: lightgreen;"></div>
+                                    <span>Service</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: lightyellow;"></div>
+                                    <span>Site</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: lightgrey;"></div>
+                                    <span>Binding</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>Service Roles:</h6>
+                            <div class="d-flex flex-wrap">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: #ADD8E6;"></div>
+                                    <span>Web</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: #90EE90;"></div>
+                                    <span>Middleware/App</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: #FFB6C1;"></div>
+                                    <span>Database</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: #FFA07A;"></div>
+                                    <span>Cache</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background-color: #D8BFD8;"></div>
+                                    <span>Messaging</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No visualization data available. Please run a scan and analyze dependencies first.
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="/" class="btn btn-primary me-2">
+                            <i class="fas fa-search me-2"></i>Run Scan
+                        </a>
+                        <form action="/analyze" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-cogs me-2"></i>Analyze Dependencies
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>About the Visualization</h5>
+            </div>
+            <div class="card-body">
+                <p>The dependency visualization shows the relationships between hosts, services, and applications in your IT infrastructure:</p>
+                
+                <ul>
+                    <li><strong>Nodes:</strong> Represent hosts, services, IIS sites, and bindings</li>
+                    <li><strong>Colors:</strong> Indicate the role or type of each node</li>
+                    <li><strong>Edges:</strong> Show the dependencies between components</li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> Hover over nodes to see detailed information. You can drag nodes to rearrange the visualization and use the mouse wheel to zoom.
+                </div>
+                
+                <h6>Understanding Edge Types:</h6>
+                <ul>
+                    <li><strong>Hosts:</strong> A host contains a service or site (solid black line)</li>
+                    <li><strong>Binds To:</strong> A site binds to a specific hostname/port (dashed grey line)</li>
+                    <li><strong>Uses:</strong> A component uses another component (dotted blue line)</li>
+                    <li><strong>Depends On:</strong> A service depends on another service (bold red line)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs me-2"></i>Next Steps</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-alt fa-3x mb-3"></i>
+                                <h5>Generate Assessment Report</h5>
+                                <p>Create a comprehensive report with findings and recommendations</p>
+                                <form action="/generate_report" method="post">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-file-export me-2"></i>Generate Report
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <i class="fas fa-search-plus fa-3x mb-3"></i>
+                                <h5>Run Additional Scans</h5>
+                                <p>Gather more data to improve your analysis</p>
+                                <a href="/" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>Return to Scan Page
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if graph_data %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+    // Parse the graph data from the server
+    const graphData = {{ graph_data|safe }};
+    
+    // Set up dimensions and container
+    const container = document.getElementById('visualization-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    // Create a tooltip div
+    const tooltip = d3.select('body').append('div')
+        .attr('class', 'tooltip')
+        .style('opacity', 0);
+    
+    // Set up the simulation
+    const simulation = d3.forceSimulation()
+        .force('link', d3.forceLink().id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(50));
+    
+    // Create the SVG
+    const svg = d3.select('#visualization-container')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .call(d3.zoom().on('zoom', (event) => {
+            g.attr('transform', event.transform);
+        }));
+    
+    const g = svg.append('g');
+    
+    // Define arrow marker
+    svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '-0 -5 10 10')
+        .attr('refX', 20)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('xoverflow', 'visible')
+        .append('svg:path')
+        .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+        .attr('fill', '#999')
+        .style('stroke', 'none');
+    
+    // Create the graph elements
+    let nodeElements, linkElements;
+    
+    function updateGraph(nodes, links) {
+        // Remove existing elements
+        g.selectAll('.link').remove();
+        g.selectAll('.node').remove();
+        
+        // Add links
+        linkElements = g.append('g')
+            .selectAll('line')
+            .data(links)
+            .enter().append('line')
+            .attr('class', 'link')
+            .attr('stroke', d => d.color || '#999')
+            .attr('stroke-width', 1.5)
+            .attr('marker-end', 'url(#arrowhead)');
+        
+        // Add nodes
+        nodeElements = g.append('g')
+            .selectAll('circle')
+            .data(nodes)
+            .enter().append('circle')
+            .attr('class', 'node')
+            .attr('r', 12)
+            .attr('fill', d => d.color || '#999')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+        
+        // Add node labels
+        const textElements = g.append('g')
+            .selectAll('text')
+            .data(nodes)
+            .enter().append('text')
+            .text(d => d.label)
+            .attr('dx', 15)
+            .attr('dy', 4)
+            .style('font-size', '10px')
+            .style('fill', '#fff');
+        
+        // Add tooltips
+        nodeElements.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', .9);
+                    
+                let tooltipContent = `<strong>${d.label}</strong><br>`;
+                tooltipContent += `Type: ${d.type}<br>`;
+                
+                if (d.role && d.role !== 'unknown') {
+                    tooltipContent += `Role: ${d.role}<br>`;
+                }
+                
+                if (d.ip) {
+                    tooltipContent += `IP: ${d.ip}<br>`;
+                }
+                
+                if (d.port) {
+                    tooltipContent += `Port: ${d.port}<br>`;
+                }
+                
+                if (d.app_type && d.app_type !== 'unknown') {
+                    tooltipContent += `Application Type: ${d.app_type}<br>`;
+                }
+                
+                if (d.hostname) {
+                    tooltipContent += `Hostname: ${d.hostname}<br>`;
+                }
+                
+                tooltip.html(tooltipContent)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+            });
+        
+        // Update simulation
+        simulation.nodes(nodes).on('tick', ticked);
+        simulation.force('link').links(links);
+        simulation.alpha(1).restart();
+        
+        // Tick function
+        function ticked() {
+            linkElements
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+            
+            nodeElements
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+            
+            textElements
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+        }
+    }
+    
+    // Drag functions
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+    
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+    
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+    
+    // Filter functions
+    function filterGraph() {
+        const typeFilter = document.getElementById('filter-type').value;
+        const roleFilter = document.getElementById('filter-role').value;
+        
+        let filteredNodes = graphData.nodes;
+        
+        if (typeFilter !== 'all') {
+            filteredNodes = filteredNodes.filter(node => node.type === typeFilter);
+        }
+        
+        if (roleFilter !== 'all') {
+            filteredNodes = filteredNodes.filter(node => 
+                node.role === roleFilter || 
+                (node.roles && node.roles.includes(roleFilter))
+            );
+        }
+        
+        const nodeIds = new Set(filteredNodes.map(node => node.id));
+        
+        const filteredLinks = graphData.links.filter(link => 
+            nodeIds.has(link.source) && nodeIds.has(link.target)
+        );
+        
+        updateGraph(filteredNodes, filteredLinks);
+    }
+    
+    // Event listeners
+    document.getElementById('reset').addEventListener('click', () => {
+        document.getElementById('filter-type').value = 'all';
+        document.getElementById('filter-role').value = 'all';
+        updateGraph(graphData.nodes, graphData.links);
+    });
+    
+    document.getElementById('filter-type').addEventListener('change', filterGraph);
+    document.getElementById('filter-role').addEventListener('change', filterGraph);
+    
+    // Initial graph render
+    updateGraph(graphData.nodes, graphData.links);
+    
+    // Resize handler
+    window.addEventListener('resize', function() {
+        const newWidth = container.clientWidth;
+        const newHeight = container.clientHeight;
+        
+        svg.attr('width', newWidth).attr('height', newHeight);
+        simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
+        simulation.alpha(0.3).restart();
+    });
+</script>
+{% endif %}
+{% endblock %}

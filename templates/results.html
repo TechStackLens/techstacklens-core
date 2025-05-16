@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}TechStackLens - Scan Results{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-search me-2"></i>Scan Results</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="resultsTabs" role="tablist">
+                    {% if results.iis_scan %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="iis-results-tab" data-bs-toggle="tab" data-bs-target="#iis-results" type="button" role="tab" aria-controls="iis-results" aria-selected="true">IIS Scan</button>
+                    </li>
+                    {% endif %}
+                    
+                    {% if results.network_scan %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if not results.iis_scan %}active{% endif %}" id="network-results-tab" data-bs-toggle="tab" data-bs-target="#network-results" type="button" role="tab" aria-controls="network-results" aria-selected="{% if not results.iis_scan %}true{% else %}false{% endif %}">Network Scan</button>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if not results.iis_scan and not results.network_scan %}active{% endif %}" id="raw-results-tab" data-bs-toggle="tab" data-bs-target="#raw-results" type="button" role="tab" aria-controls="raw-results" aria-selected="{% if not results.iis_scan and not results.network_scan %}true{% else %}false{% endif %}">Raw Data</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content mt-3" id="resultsTabsContent">
+                    <!-- IIS Scan Results Tab -->
+                    {% if results.iis_scan %}
+                    <div class="tab-pane fade show active" id="iis-results" role="tabpanel" aria-labelledby="iis-results-tab">
+                        <div class="mb-3">
+                            <h5>IIS Sites</h5>
+                            
+                            {% if results.iis_scan.iis_sites and results.iis_scan.iis_sites|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Site Name</th>
+                                            <th>ID</th>
+                                            <th>Application Type</th>
+                                            <th>Bindings</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for site in results.iis_scan.iis_sites %}
+                                        <tr>
+                                            <td>{{ site.name }}</td>
+                                            <td>{{ site.id }}</td>
+                                            <td>
+                                                {% if site.app_type %}
+                                                <span class="badge bg-primary">{{ site.app_type }}</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">unknown</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if site.bindings %}
+                                                <ul class="list-unstyled">
+                                                    {% for binding in site.bindings %}
+                                                    <li>
+                                                        <span class="badge {% if binding.protocol == 'https' %}bg-success{% else %}bg-primary{% endif %}">
+                                                            {{ binding.protocol }}
+                                                        </span>
+                                                        {{ binding.hostname or '*' }}:{{ binding.port }}
+                                                        {% if binding.sni %}
+                                                        <span class="badge bg-info">SNI</span>
+                                                        {% endif %}
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                                {% else %}
+                                                <span class="text-muted">No bindings found</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No IIS sites found
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h5>Hostname Mapping</h5>
+                            
+                            {% if results.iis_scan.hostname_map and results.iis_scan.hostname_map|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Hostname</th>
+                                            <th>Site Name</th>
+                                            <th>IP</th>
+                                            <th>Port</th>
+                                            <th>Protocol</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for hostname, data in results.iis_scan.hostname_map.items() %}
+                                        <tr>
+                                            <td>{{ hostname }}</td>
+                                            <td>{{ data.site_name }}</td>
+                                            <td>{{ data.ip }}</td>
+                                            <td>{{ data.port }}</td>
+                                            <td>
+                                                <span class="badge {% if data.protocol == 'https' %}bg-success{% else %}bg-primary{% endif %}">
+                                                    {{ data.protocol }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No hostname mappings found
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Network Scan Results Tab -->
+                    {% if results.network_scan %}
+                    <div class="tab-pane fade {% if not results.iis_scan %}show active{% endif %}" id="network-results" role="tabpanel" aria-labelledby="network-results-tab">
+                        <div class="mb-3">
+                            <h5>Scan Information</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-3">Target Range:</dt>
+                                        <dd class="col-sm-9">{{ results.network_scan.scan_info.target }}</dd>
+                                        
+                                        <dt class="col-sm-3">Timestamp:</dt>
+                                        <dd class="col-sm-9">{{ results.network_scan.scan_info.timestamp }}</dd>
+                                        
+                                        <dt class="col-sm-3">Local Hostname:</dt>
+                                        <dd class="col-sm-9">{{ results.network_scan.scan_info.local_hostname }}</dd>
+                                        
+                                        <dt class="col-sm-3">Local IP:</dt>
+                                        <dd class="col-sm-9">{{ results.network_scan.scan_info.local_ip }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h5>Discovered Hosts</h5>
+                            
+                            {% if results.network_scan.hosts and results.network_scan.hosts|length > 0 %}
+                            <div class="accordion" id="hostsAccordion">
+                                {% for host in results.network_scan.hosts %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="host-heading-{{ loop.index }}">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#host-collapse-{{ loop.index }}" aria-expanded="false" aria-controls="host-collapse-{{ loop.index }}">
+                                            <span class="me-2">{{ host.hostname or host.ip }}</span>
+                                            <span class="badge bg-secondary me-2">{{ host.ip }}</span>
+                                            {% for role in host.roles %}
+                                            <span class="badge bg-primary me-1">{{ role }}</span>
+                                            {% endfor %}
+                                        </button>
+                                    </h2>
+                                    <div id="host-collapse-{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="host-heading-{{ loop.index }}" data-bs-parent="#hostsAccordion">
+                                        <div class="accordion-body">
+                                            {% if host.services and host.services|length > 0 %}
+                                            <h6>Services</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Port</th>
+                                                            <th>Service</th>
+                                                            <th>Product</th>
+                                                            <th>Role</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for service in host.services %}
+                                                        <tr>
+                                                            <td>{{ service.port }}</td>
+                                                            <td>{{ service.name }}</td>
+                                                            <td>{{ service.product }}</td>
+                                                            <td>
+                                                                {% if service.role %}
+                                                                <span class="badge bg-info">{{ service.role }}</span>
+                                                                {% else %}
+                                                                <span class="badge bg-secondary">unknown</span>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {% else %}
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle me-2"></i>No services detected on this host
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No hosts discovered
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Raw Data Tab -->
+                    <div class="tab-pane fade {% if not results.iis_scan and not results.network_scan %}show active{% endif %}" id="raw-results" role="tabpanel" aria-labelledby="raw-results-tab">
+                        <div class="mb-3">
+                            <h5>Raw JSON Data</h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>This view shows the raw JSON data from the scans
+                            </div>
+                            <div class="card bg-dark">
+                                <div class="card-body">
+                                    <pre class="text-light mb-0"><code id="raw-json">{{ results|tojson(indent=2) }}</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <button class="btn btn-outline-secondary" id="copy-json-btn">
+                                <i class="fas fa-copy me-2"></i>Copy to Clipboard
+                            </button>
+                            <a href="/download/scan_results.json" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-2"></i>Download JSON
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs me-2"></i>Next Steps</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-project-diagram fa-3x mb-3"></i>
+                                <h5>Analyze Dependencies</h5>
+                                <p>Map dependencies between hosts and services</p>
+                                <form action="/analyze" method="post">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-cogs me-2"></i>Analyze
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-search-plus fa-3x mb-3"></i>
+                                <h5>Run Additional Scans</h5>
+                                <p>Gather more data from your environment</p>
+                                <a href="/" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>Scan More
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-save fa-3x mb-3"></i>
+                                <h5>Save Results</h5>
+                                <p>Export the scan results for later use</p>
+                                <a href="/download/scan_results.json" class="btn btn-primary">
+                                    <i class="fas fa-download me-2"></i>Export
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('copy-json-btn').addEventListener('click', function() {
+        const jsonText = document.getElementById('raw-json').textContent;
+        navigator.clipboard.writeText(jsonText).then(function() {
+            // Show success feedback
+            const button = document.getElementById('copy-json-btn');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-outline-secondary');
+            
+            setTimeout(function() {
+                button.innerHTML = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-outline-secondary');
+            }, 2000);
+        });
+    });
+</script>
+{% endblock %}

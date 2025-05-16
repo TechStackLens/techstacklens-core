@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}TechStackLens - Assessment Report{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-file-alt me-2"></i>Assessment Report</h5>
+                {% if report_path %}
+                <a href="/download/{{ report_path }}" class="btn btn-primary">
+                    <i class="fas fa-download me-2"></i>Download Report
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if html_content %}
+                    <div class="report-container">
+                        <iframe id="report-frame" style="width:100%; height:800px; border:none;" srcdoc="{{ html_content|safe }}"></iframe>
+                    </div>
+                {% elif report_path %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-pdf fa-5x mb-3 text-danger"></i>
+                        <h4>PDF Report Generated</h4>
+                        <p>Your report has been generated as a PDF file.</p>
+                        <a href="/download/{{ report_path }}" class="btn btn-primary btn-lg mt-3">
+                            <i class="fas fa-download me-2"></i>Download PDF Report
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>No report has been generated yet. Please run a scan, analyze the results, and generate a report.
+                    </div>
+                    
+                    <div class="text-center py-4">
+                        <img src="https://cdn.pixabay.com/photo/2018/08/10/11/24/business-3596296_960_720.svg" alt="Report Illustration" class="img-fluid mb-4" style="max-height: 300px;">
+                        
+                        <h4>Generate an Assessment Report</h4>
+                        <p class="lead">Run a scan and analyze your infrastructure to generate a comprehensive report with findings and recommendations.</p>
+                        
+                        <div class="mt-4">
+                            <a href="/" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-2"></i>Run Scan
+                            </a>
+                            <form action="/analyze" method="post" class="d-inline me-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-project-diagram me-2"></i>Analyze
+                                </button>
+                            </form>
+                            <form action="/generate_report" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-file-export me-2"></i>Generate Report
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if html_content or report_path %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb me-2"></i>About the Report</h5>
+            </div>
+            <div class="card-body">
+                <p>The assessment report provides a comprehensive overview of your IT infrastructure based on the scan results and dependency analysis. It includes:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul>
+                            <li><strong>Executive Summary:</strong> Overview of the assessment findings</li>
+                            <li><strong>Discovered Hosts:</strong> Inventory of hosts and their roles</li>
+                            <li><strong>IIS Sites:</strong> Web applications and their configurations</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul>
+                            <li><strong>Dependencies:</strong> Identified relationships between components</li>
+                            <li><strong>Recommendations:</strong> Suggestions for improvements</li>
+                            <li><strong>Next Steps:</strong> Actionable items for enhancing the infrastructure</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> This report can be used for documentation, planning, and architectural reviews. Consider sharing it with your team or stakeholders to guide infrastructure improvements.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

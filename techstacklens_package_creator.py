@@ -21,11 +21,12 @@ SCANNERS = {
         "batch_file": "run_windows_scanner.bat",
         "description": "Collects information about Windows IIS environments and network infrastructure."
     },
-    "lamp": {
-        "name": "LAMP Stack Scanner",
-        "script": "lamp_scanner.py",
-        "shell_file": "run_lamp_scanner.sh",
-        "description": "Collects information about Linux, Apache, MySQL, and PHP environments."
+    "xampp": {
+        "name": "XAMPP Stack Scanner",
+        "script": "xampp_scanner.py",
+        "shell_file": "run_xampp_scanner.sh",
+        "batch_file": "run_xampp_scanner.bat",
+        "description": "Collects information about XAMPP environments (Apache, MySQL, PHP, Perl) on Windows or Linux systems."
     },
     "cloud": {
         "name": "Cloud Infrastructure Scanner",

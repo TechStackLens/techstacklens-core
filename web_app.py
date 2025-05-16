@@ -44,6 +44,7 @@ scan_state = {
     "azure_scan_results": None,
     "gcp_scan_results": None,
     "lamp_scan_results": None,
+    "xampp_scan_results": None,
     "combined_results": None,
     "dependency_graph": None,
     "visualization_path": None,
@@ -331,6 +332,9 @@ def upload_results():
                 elif 'apache_scan' in results:
                     scan_type = "lamp_scan"
                     scan_name = "LAMP Stack"
+                elif 'xampp_scan' in results:
+                    scan_type = "xampp_scan"
+                    scan_name = "XAMPP Stack"
                 else:
                     flash(f"Unknown format in file {file.filename}", "warning")
                     continue

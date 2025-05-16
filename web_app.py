@@ -40,6 +40,11 @@ ensure_directory(OUTPUT_DIR)
 scan_state = {
     "iis_scan_results": None,
     "network_scan_results": None,
+    "aws_scan_results": None,
+    "azure_scan_results": None,
+    "gcp_scan_results": None,
+    "lamp_scan_results": None,
+    "combined_results": None,
     "dependency_graph": None,
     "visualization_path": None,
     "report_path": None
@@ -118,17 +123,29 @@ def run_scan():
 @app.route('/analyze', methods=['POST'])
 def analyze_dependencies():
     """Analyze dependencies from scan results."""
-    # Combine scan results
-    combined_results = {}
-    
-    if scan_state["iis_scan_results"]:
-        combined_results.update(scan_state["iis_scan_results"])
-    
-    if scan_state["network_scan_results"]:
-        combined_results.update(scan_state["network_scan_results"])
+    # Check if we have combined results from multiple file uploads
+    if scan_state.get("combined_results"):
+        combined_results = scan_state["combined_results"]
+    else:
+        # Otherwise, build combined results from individual scans
+        combined_results = {}
+        
+        # Check all possible scan types
+        scan_types = [
+            "iis_scan_results", 
+            "network_scan_results", 
+            "aws_scan_results", 
+            "azure_scan_results", 
+            "gcp_scan_results", 
+            "lamp_scan_results"
+        ]
+        
+        for scan_type in scan_types:
+            if scan_state.get(scan_type):
+                combined_results.update(scan_state[scan_type])
     
     if not combined_results:
-        flash("No scan results available for analysis", "danger")
+        flash("No scan results available for analysis. Please upload scan data first.", "danger")
         return redirect(url_for('index'))
     
     try:
@@ -146,7 +163,11 @@ def analyze_dependencies():
         visualizer.generate(dependency_graph, str(graph_path))
         scan_state["visualization_path"] = f"{graph_path}.html"
         
-        flash("Dependency analysis completed successfully", "success")
+        # Count analyzed resources
+        node_count = len(dependency_graph.get("nodes", []))
+        edge_count = len(dependency_graph.get("edges", []))
+        
+        flash(f"Dependency analysis completed successfully: {node_count} nodes and {edge_count} relationships mapped", "success")
     except Exception as e:
         logger.error(f"Error during dependency analysis: {e}")
         flash(f"Error during dependency analysis: {e}", "danger")
@@ -246,47 +267,104 @@ def view_report():
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
-    """Download a file from the output directory."""
+    """Download a file from the output directory or scanner package."""
+    # First check if it's a scanner package in the dist directory
+    dist_dir = Path("dist")
+    if dist_dir.exists() and (dist_dir / filename).exists():
+        return send_file(dist_dir / filename, as_attachment=True)
+    
+    # Otherwise look in the output directory
     return send_file(OUTPUT_DIR / filename, as_attachment=True)
 
 @app.route('/upload_results', methods=['POST'])
 def upload_results():
-    """Upload scan results from a file."""
-    if 'results_file' not in request.files:
+    """Upload scan results from files."""
+    if 'results_files' not in request.files:
         flash('No file part', 'danger')
         return redirect(url_for('index'))
     
-    file = request.files['results_file']
+    files = request.files.getlist('results_files')
     
-    if file.filename == '':
-        flash('No selected file', 'danger')
+    if not files or all(file.filename == '' for file in files):
+        flash('No selected files', 'danger')
         return redirect(url_for('index'))
     
-    if file:
+    # Check if files should be merged
+    merge_files = request.form.get('merge_files') == 'true'
+    
+    # Reset the state if we're uploading new files
+    scan_state["iis_scan_results"] = None
+    scan_state["network_scan_results"] = None
+    scan_state["aws_scan_results"] = None
+    scan_state["azure_scan_results"] = None
+    scan_state["gcp_scan_results"] = None
+    scan_state["lamp_scan_results"] = None
+    
+    # Combined results for merged processing
+    combined_results = {}
+    
+    # Process all uploaded files
+    successful_uploads = 0
+    for file in files:
+        if file and file.filename:
+            try:
+                # Parse the file contents
+                file_content = file.read().decode('utf-8')
+                results = json.loads(file_content)
+                
+                # Store the results based on type
+                if 'iis_scan' in results:
+                    scan_type = "iis_scan"
+                    scan_name = "Windows IIS"
+                elif 'network_scan' in results:
+                    scan_type = "network_scan"
+                    scan_name = "Network"
+                elif 'aws_scan' in results:
+                    scan_type = "aws_scan"
+                    scan_name = "AWS Cloud"
+                elif 'azure_scan' in results:
+                    scan_type = "azure_scan"
+                    scan_name = "Azure Cloud"
+                elif 'gcp_scan' in results:
+                    scan_type = "gcp_scan"
+                    scan_name = "GCP Cloud"
+                elif 'apache_scan' in results:
+                    scan_type = "lamp_scan"
+                    scan_name = "LAMP Stack"
+                else:
+                    flash(f"Unknown format in file {file.filename}", "warning")
+                    continue
+                
+                # Save individual scan results to state and files
+                scan_state[scan_type + "_results"] = results
+                output_file = OUTPUT_DIR / f"{scan_type}_results.json"
+                with open(output_file, 'w') as f:
+                    json.dump(results, f, indent=2)
+                
+                # Add to combined results if merging
+                if merge_files:
+                    combined_results.update(results)
+                
+                successful_uploads += 1
+                flash(f"{scan_name} scan results from {file.filename} uploaded successfully", "success")
+                
+            except json.JSONDecodeError:
+                flash(f"Invalid JSON in file {file.filename}", "danger")
+            except Exception as e:
+                flash(f"Error processing file {file.filename}: {e}", "danger")
+    
+    # If merging is enabled and we have multiple successful uploads, save combined file
+    if merge_files and successful_uploads > 1:
         try:
-            # Save the file temporarily
-            results = json.loads(file.read().decode('utf-8'))
-            
-            # Determine if it's IIS or network scan results
-            if 'iis_scan' in results:
-                scan_state["iis_scan_results"] = results
-                with open(OUTPUT_DIR / "iis_scan_results.json", 'w') as f:
-                    json.dump(results, f, indent=2)
-                flash("IIS scan results uploaded successfully", "success")
-            
-            elif 'network_scan' in results:
-                scan_state["network_scan_results"] = results
-                with open(OUTPUT_DIR / "network_scan_results.json", 'w') as f:
-                    json.dump(results, f, indent=2)
-                flash("Network scan results uploaded successfully", "success")
-            
-            else:
-                flash("Unknown results format", "danger")
-            
-        except json.JSONDecodeError:
-            flash("Invalid JSON file", "danger")
+            with open(OUTPUT_DIR / "combined_scan_results.json", 'w') as f:
+                json.dump(combined_results, f, indent=2)
+            scan_state["combined_results"] = combined_results
+            flash(f"Successfully merged {successful_uploads} files for unified analysis", "success")
         except Exception as e:
-            flash(f"Error processing file: {e}", "danger")
+            flash(f"Error creating merged results: {e}", "warning")
+    
+    if successful_uploads == 0:
+        flash("No files were successfully processed", "danger")
     
     return redirect(url_for('index'))
 

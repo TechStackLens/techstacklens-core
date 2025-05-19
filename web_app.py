@@ -12,7 +12,8 @@ import json
 import logging
 import tempfile
 from pathlib import Path
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session
+import uuid
 
 from techstacklens.scanner.iis_scanner import IISScanner
 from techstacklens.scanner.network_scanner import NetworkScanner
@@ -31,36 +32,47 @@ logger = logging.getLogger(__name__)
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "techstacklens_secret_key")
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Ensure output directory exists
 OUTPUT_DIR = Path("output")
 ensure_directory(OUTPUT_DIR)
 
-# Global state to store scan results
-scan_state = {
-    "iis_scan_results": None,
-    "network_scan_results": None,
-    "aws_scan_results": None,
-    "azure_scan_results": None,
-    "gcp_scan_results": None,
-    "lamp_scan_results": None,
-    "xampp_scan_results": None,
-    "combined_results": None,
-    "dependency_graph": None,
-    "visualization_path": None,
-    "report_path": None
-}
+# Global state to store scan results per session
+user_scan_states = {}
+
+@app.before_request
+def ensure_user_session():
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    if session['user_id'] not in user_scan_states:
+        user_scan_states[session['user_id']] = {
+            "iis_scan_results": None,
+            "network_scan_results": None,
+            "aws_scan_results": None,
+            "azure_scan_results": None,
+            "gcp_scan_results": None,
+            "lamp_scan_results": None,
+            "xampp_scan_results": None,
+            "combined_results": None,
+            "dependency_graph": None,
+            "visualization_path": None,
+            "report_path": None
+        }
 
 @app.route('/')
 def index():
     """Render the main page."""
+    user_state = user_scan_states[session['user_id']]
     local_ip = get_local_ip()
     admin_status = is_admin()
     nmap_installed = check_nmap_installed()
     
-    scan_completed = scan_state["iis_scan_results"] is not None or scan_state["network_scan_results"] is not None
-    analysis_completed = scan_state["dependency_graph"] is not None
-    report_generated = scan_state["report_path"] is not None
+    scan_completed = user_state["iis_scan_results"] is not None or user_state["network_scan_results"] is not None
+    analysis_completed = user_state["dependency_graph"] is not None
+    report_generated = user_state["report_path"] is not None
     
     return render_template('index.html', 
                           local_ip=local_ip,
@@ -73,6 +85,7 @@ def index():
 @app.route('/scan', methods=['POST'])
 def run_scan():
     """Run a scan based on user input."""
+    user_state = user_scan_states[session['user_id']]
     scan_type = request.form.get('scan_type')
     
     if scan_type == 'iis':
@@ -80,7 +93,7 @@ def run_scan():
         try:
             iis_scanner = IISScanner()
             results = iis_scanner.scan()
-            scan_state["iis_scan_results"] = results
+            user_state["iis_scan_results"] = results
             
             # Save results to file
             with open(OUTPUT_DIR / "iis_scan_results.json", 'w') as f:
@@ -105,7 +118,7 @@ def run_scan():
         try:
             network_scanner = NetworkScanner()
             results = network_scanner.scan(network_range)
-            scan_state["network_scan_results"] = results
+            user_state["network_scan_results"] = results
             
             # Save results to file
             with open(OUTPUT_DIR / "network_scan_results.json", 'w') as f:
@@ -124,9 +137,10 @@ def run_scan():
 @app.route('/analyze', methods=['POST'])
 def analyze_dependencies():
     """Analyze dependencies from scan results."""
+    user_state = user_scan_states[session['user_id']]
     # Check if we have combined results from multiple file uploads
-    if scan_state.get("combined_results"):
-        combined_results = scan_state["combined_results"]
+    if user_state.get("combined_results"):
+        combined_results = user_state["combined_results"]
     else:
         # Otherwise, build combined results from individual scans
         combined_results = {}
@@ -142,8 +156,8 @@ def analyze_dependencies():
         ]
         
         for scan_type in scan_types:
-            if scan_state.get(scan_type):
-                combined_results.update(scan_state[scan_type])
+            if user_state.get(scan_type):
+                combined_results.update(user_state[scan_type])
     
     if not combined_results:
         flash("No scan results available for analysis. Please upload scan data first.", "danger")
@@ -152,7 +166,7 @@ def analyze_dependencies():
     try:
         analyzer = DependencyAnalyzer()
         dependency_graph = analyzer.analyze(combined_results)
-        scan_state["dependency_graph"] = dependency_graph
+        user_state["dependency_graph"] = dependency_graph
         
         # Save analysis results
         with open(OUTPUT_DIR / "dependency_analysis.json", 'w') as f:
@@ -162,7 +176,7 @@ def analyze_dependencies():
         visualizer = GraphGenerator()
         graph_path = OUTPUT_DIR / "dependency_graph"
         visualizer.generate(dependency_graph, str(graph_path))
-        scan_state["visualization_path"] = f"{graph_path}.html"
+        user_state["visualization_path"] = f"{graph_path}.html"
         
         # Count analyzed resources
         node_count = len(dependency_graph.get("nodes", []))
@@ -178,33 +192,34 @@ def analyze_dependencies():
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
     """Generate a report from scan and analysis results."""
+    user_state = user_scan_states[session['user_id']]
     combined_results = {}
     
-    if scan_state["iis_scan_results"]:
-        combined_results.update(scan_state["iis_scan_results"])
+    if user_state["iis_scan_results"]:
+        combined_results.update(user_state["iis_scan_results"])
     
-    if scan_state["network_scan_results"]:
-        combined_results.update(scan_state["network_scan_results"])
+    if user_state["network_scan_results"]:
+        combined_results.update(user_state["network_scan_results"])
     
     if not combined_results:
         flash("No scan results available for report generation", "danger")
         return redirect(url_for('index'))
     
-    if not scan_state["dependency_graph"]:
+    if not user_state["dependency_graph"]:
         flash("No dependency analysis available for report generation", "danger")
         return redirect(url_for('index'))
     
     try:
         reporter = ReportGenerator()
         report_path = OUTPUT_DIR / "techstacklens_report.pdf"
-        reporter.generate_report(combined_results, scan_state["dependency_graph"], str(report_path))
+        reporter.generate_report(combined_results, user_state["dependency_graph"], str(report_path))
         
         # Store HTML report path
         html_report_path = OUTPUT_DIR / "techstacklens_report.html"
         if os.path.exists(html_report_path):
-            scan_state["report_path"] = str(html_report_path)
+            user_state["report_path"] = str(html_report_path)
         else:
-            scan_state["report_path"] = str(report_path)
+            user_state["report_path"] = str(report_path)
         
         flash("Report generated successfully", "success")
     except Exception as e:
@@ -216,14 +231,15 @@ def generate_report():
 @app.route('/results')
 def view_results():
     """View scan results."""
+    user_state = user_scan_states[session['user_id']]
     # Combine scan results
     combined_results = {}
     
-    if scan_state["iis_scan_results"]:
-        combined_results.update(scan_state["iis_scan_results"])
+    if user_state["iis_scan_results"]:
+        combined_results.update(user_state["iis_scan_results"])
     
-    if scan_state["network_scan_results"]:
-        combined_results.update(scan_state["network_scan_results"])
+    if user_state["network_scan_results"]:
+        combined_results.update(user_state["network_scan_results"])
     
     if not combined_results:
         flash("No scan results available", "danger")
@@ -234,28 +250,30 @@ def view_results():
 @app.route('/visualization')
 def view_visualization():
     """View dependency visualization."""
-    if not scan_state["dependency_graph"]:
+    user_state = user_scan_states[session['user_id']]
+    if not user_state["dependency_graph"]:
         flash("No dependency analysis available", "danger")
         return redirect(url_for('index'))
     
     # If we have an HTML visualization, use it
-    if scan_state["visualization_path"] and os.path.exists(scan_state["visualization_path"]):
+    if user_state["visualization_path"] and os.path.exists(user_state["visualization_path"]):
         # Read the HTML content
-        with open(scan_state["visualization_path"], 'r') as f:
+        with open(user_state["visualization_path"], 'r') as f:
             html_content = f.read()
         return render_template('visualization.html', html_content=html_content)
     
     # Otherwise, fall back to displaying the JSON
-    return render_template('visualization.html', graph_data=json.dumps(scan_state["dependency_graph"]))
+    return render_template('visualization.html', graph_data=json.dumps(user_state["dependency_graph"]))
 
 @app.route('/report')
 def view_report():
     """View generated report."""
-    if not scan_state["report_path"]:
+    user_state = user_scan_states[session['user_id']]
+    if not user_state["report_path"]:
         flash("No report has been generated", "danger")
         return redirect(url_for('index'))
     
-    report_path = scan_state["report_path"]
+    report_path = user_state["report_path"]
     
     # If it's an HTML report, embed it
     if report_path.endswith('.html'):
@@ -280,122 +298,57 @@ def download_file(filename):
 @app.route('/upload_results', methods=['POST'])
 def upload_results():
     """Upload scan results from files."""
-    if 'results_files' not in request.files:
-        flash('No file part', 'danger')
-        return redirect(url_for('index'))
-    
+    import json
+    user_state = user_scan_states[session['user_id']]
     files = request.files.getlist('results_files')
-    
-    if not files or all(file.filename == '' for file in files):
-        flash('No selected files', 'danger')
+    if not files:
+        flash('No files uploaded.', 'danger')
         return redirect(url_for('index'))
-    
-    # Check if files should be merged
-    merge_files = request.form.get('merge_files') == 'true'
-    
-    # Reset the state if we're uploading new files
-    scan_state["iis_scan_results"] = None
-    scan_state["network_scan_results"] = None
-    scan_state["aws_scan_results"] = None
-    scan_state["azure_scan_results"] = None
-    scan_state["gcp_scan_results"] = None
-    scan_state["lamp_scan_results"] = None
-    
-    # Combined results for merged processing
-    combined_results = {}
-    
-    # Process all uploaded files
-    successful_uploads = 0
+    all_results = []
     for file in files:
-        if file and file.filename:
-            try:
-                # Parse the file contents
-                file_content = file.read().decode('utf-8')
-                results = json.loads(file_content)
-                
-                # Store the results based on type
-                if 'iis_scan' in results:
-                    scan_type = "iis_scan"
-                    scan_name = "Windows IIS"
-                elif 'network_scan' in results:
-                    scan_type = "network_scan"
-                    scan_name = "Network"
-                elif 'aws_scan' in results:
-                    scan_type = "aws_scan"
-                    scan_name = "AWS Cloud"
-                elif 'azure_scan' in results:
-                    scan_type = "azure_scan"
-                    scan_name = "Azure Cloud"
-                elif 'gcp_scan' in results:
-                    scan_type = "gcp_scan"
-                    scan_name = "GCP Cloud"
-                elif 'apache_scan' in results:
-                    scan_type = "lamp_scan"
-                    scan_name = "LAMP Stack"
-                elif 'xampp_scan' in results:
-                    scan_type = "xampp_scan"
-                    scan_name = "XAMPP Stack"
-                else:
-                    flash(f"Unknown format in file {file.filename}", "warning")
-                    continue
-                
-                # Save individual scan results to state and files
-                scan_state[scan_type + "_results"] = results
-                output_file = OUTPUT_DIR / f"{scan_type}_results.json"
-                with open(output_file, 'w') as f:
-                    json.dump(results, f, indent=2)
-                
-                # Add to combined results if merging
-                if merge_files:
-                    combined_results.update(results)
-                
-                successful_uploads += 1
-                flash(f"{scan_name} scan results from {file.filename} uploaded successfully", "success")
-                
-            except json.JSONDecodeError:
-                flash(f"Invalid JSON in file {file.filename}", "danger")
-            except Exception as e:
-                flash(f"Error processing file {file.filename}: {e}", "danger")
-    
-    # If merging is enabled and we have multiple successful uploads, save combined file
-    if merge_files and successful_uploads > 1:
+        if not file.filename.endswith('.json'):
+            flash('Only .json files are allowed.', 'danger')
+            return redirect(url_for('index'))
         try:
-            with open(OUTPUT_DIR / "combined_scan_results.json", 'w') as f:
-                json.dump(combined_results, f, indent=2)
-            scan_state["combined_results"] = combined_results
-            flash(f"Successfully merged {successful_uploads} files for unified analysis", "success")
-        except Exception as e:
-            flash(f"Error creating merged results: {e}", "warning")
-    
-    if successful_uploads == 0:
-        flash("No files were successfully processed", "danger")
-    
+            data = json.load(file)
+            if not isinstance(data, dict):
+                flash('Uploaded file is not a valid JSON object.', 'danger')
+                return redirect(url_for('index'))
+            all_results.append(data)
+        except Exception:
+            flash('One or more files are not valid JSON.', 'danger')
+            return redirect(url_for('index'))
+    # Store results in user session state
+    user_state['combined_results'] = all_results if len(all_results) > 1 else all_results[0]
+    flash('Files uploaded and validated successfully.', 'success')
     return redirect(url_for('index'))
 
 @app.route('/reset', methods=['POST'])
 def reset_state():
     """Reset the application state."""
-    scan_state["iis_scan_results"] = None
-    scan_state["network_scan_results"] = None
-    scan_state["dependency_graph"] = None
-    scan_state["visualization_path"] = None
-    scan_state["report_path"] = None
+    user_state = user_scan_states[session['user_id']]
+    user_state["iis_scan_results"] = None
+    user_state["network_scan_results"] = None
+    user_state["dependency_graph"] = None
+    user_state["visualization_path"] = None
+    user_state["report_path"] = None
     
     flash("Application state has been reset", "success")
     return redirect(url_for('index'))
 
 @app.route('/generate_scanner', methods=['GET', 'POST'])
 def generate_scanner():
-    """Dynamically generate a scanner script based on user-selected technologies."""
+    """Dynamically generate a scanner script based on user-selected technologies and return as a .zip file."""
+    import zipfile
+    import tempfile
     if request.method == 'POST':
-        selected_stacks = request.form.getlist('stacks')  # e.g., ['iis', 'lamp', 'tomcat']
+        selected_stacks = request.form.getlist('stacks')
         script_lines = [
             "#!/usr/bin/env python3",
             '"""TechStackLens Custom Scanner Script\n\nGenerated for: ' + ', '.join(selected_stacks) + '\n"""',
             "import sys, json, logging",
             "from pathlib import Path",
             "from datetime import datetime",
-            "# ...existing code...",
         ]
         # Add imports for each selected stack
         if 'iis' in selected_stacks:
@@ -407,16 +360,30 @@ def generate_scanner():
         if 'cloud' in selected_stacks:
             script_lines.append("from techstacklens.scanner.cloud_scanner import CloudScanner")
         if 'tomcat' in selected_stacks:
-            script_lines.append("from techstacklens.scanner.tomcat_scanner import TomcatScanner  # (if implemented)")
-        # ...add more as needed...
+            script_lines.append("from techstacklens.scanner.tomcat_scanner import TomcatScanner")
+        if 'jboss' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.jboss_scanner import JBossScanner")
+        if 'xampp' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.xampp_scanner import XAMPPScanner")
+        if 'nodejs' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.nodejs_scanner import NodejsScanner")
+        if 'react' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.react_scanner import ReactScanner")
+        if 'kubernetes' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.kubectl_scanner import KubectlScanner")
+        if 'docker' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.docker_scanner import DockerScanner")
         script_lines.append("# ...main logic would go here, similar to collection_script.py...")
         script_content = '\n'.join(script_lines)
-        # Write to a temp file and send as download
-        with tempfile.NamedTemporaryFile('w+', delete=False, suffix='.py') as tmpf:
-            tmpf.write(script_content)
-            tmpf.flush()
-            tmpf.seek(0)
-            return send_file(tmpf.name, as_attachment=True, download_name='techstacklens_custom_scanner.py')
+        # Write to a temp .py file, then zip it and send as download
+        with tempfile.TemporaryDirectory() as tmpdir:
+            script_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.py')
+            with open(script_path, 'w') as f:
+                f.write(script_content)
+            zip_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.zip')
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                zipf.write(script_path, arcname='techstacklens_custom_scanner.py')
+            return send_file(zip_path, as_attachment=True, download_name='techstacklens_custom_scanner.zip')
     # If GET, render a form for stack selection
     available_stacks = [
         ('iis', 'Windows IIS'),
@@ -424,7 +391,12 @@ def generate_scanner():
         ('lamp', 'LAMP Stack'),
         ('cloud', 'Cloud Infrastructure'),
         ('tomcat', 'Tomcat'),
-        # ...add more as implemented...
+        ('jboss', 'JBoss/WildFly'),
+        ('xampp', 'XAMPP'),
+        ('nodejs', 'Node.js/Express'),
+        ('react', 'React'),
+        ('kubernetes', 'Kubernetes'),
+        ('docker', 'Docker'),
     ]
     return render_template('generate_scanner.html', available_stacks=available_stacks)
 

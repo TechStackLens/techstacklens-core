@@ -383,9 +383,10 @@ def generate_scanner():
             zip_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.zip')
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 zipf.write(script_path, arcname='techstacklens_custom_scanner.py')
-            # Move the zip to output dir for persistent serving
+            # Copy the zip to output dir for persistent serving (works across devices)
             output_zip_path = os.path.join('output', 'techstacklens_custom_scanner.zip')
-            os.replace(zip_path, output_zip_path)
+            with open(zip_path, 'rb') as src, open(output_zip_path, 'wb') as dst:
+                dst.write(src.read())
         return send_file(output_zip_path, as_attachment=True, download_name='techstacklens_custom_scanner.zip', mimetype='application/zip')
     # If GET, render a form for stack selection
     available_stacks = [

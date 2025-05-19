@@ -1,4 +1,3 @@
-```markdown
 # TechStackLens Design Document
 
 ## 1. Introduction
@@ -18,10 +17,40 @@ The tool is a kit of modular components, with stack-specific scanners and shared
   - Run on IIS servers with admin access to read `applicationHost.config` for SNI hostnames and `web.config` for app types (Flutter, .NET).
   - Lightweight `nmap` scan for cross-server dependencies (e.g., middleware on 8080, databases on 1433).
   - Output JSON with hosts, ports, services, SNI sites, and app types.
-- **LAMP Scanner (Future)**:
+- **LAMP Scanner**:
   - Parse Apache `httpd.conf` and virtual host files for site hostnames.
   - Extract MySQL connection details from PHP configs (e.g., `wp-config.php`).
   - Use `nmap` for cross-server dependencies.
+  - Output JSON with hosts, services, virtual hosts, and detected app types.
+- **XAMPP Scanner**:
+  - Detect XAMPP stack (Apache, MySQL, PHP, Perl) on Windows or Linux.
+  - Identify ELT/ETL tools (e.g., Talend, Informatica, Pentaho, Airflow, Nifi).
+  - Output JSON with stack components, virtual hosts, and ELT tools.
+- **Cloud Infrastructure Scanner**:
+  - Scan AWS, Azure, and GCP environments using their respective CLI tools.
+  - Collect inventory of VMs, databases, storage, and networking resources.
+  - Output JSON with cloud resources and relationships.
+- **Tomcat/JBoss/Java App Server Scanner (Planned)**:
+  - Parse Tomcat/JBoss/WildFly configuration files for deployed apps and ports.
+  - Detect Java web applications, middleware, and database connections.
+  - Output JSON with app server deployments and dependencies.
+- **Node.js/Express/React Scanner**:
+  - Scan for Node.js/Express apps by detecting `package.json`, entry points, and dependencies.
+  - Detect React apps by checking for `react` in dependencies.
+  - Output JSON with app details, dependencies, and scripts.
+- **Kubernetes Scanner**:
+  - Use `kubectl` to inventory pods, services, and ingress resources.
+  - Output JSON with cluster resources and relationships.
+- **Docker Scanner**:
+  - List running containers and images using the Docker CLI.
+  - Output JSON with container/image metadata and exposed ports.
+- **Other Technologies (Future)**:
+  - Nginx/Node.js/Express: Parse configs, detect running apps and ports.
+  - Kubernetes: Use `kubectl` to inventory pods, services, and ingress.
+  - Docker: List running containers, images, and exposed ports.
+  - Microsoft SQL Server, Oracle, PostgreSQL: Inventory databases and connection strings.
+  - Add plugin architecture for easy extension to new stacks.
+
 - Support plugin architecture for adding new stack scanners.
 
 ### 3.2. Analyzer
@@ -95,4 +124,4 @@ The tool is a kit of modular components, with stack-specific scanners and shared
 - **Phase 2 (May 23-June 6, 2025)**: Add cloud scanning (Azure) and LAMP scanner.
 - **Phase 3 (June 6-July 4, 2025)**: Integrate Well-Architected analysis, IaC, and connection string parsing for database dependencies.
 - **Phase 4 (July 4 onward)**: Add chatbot and multi-cloud support (AWS, GCP).
-```
+`````

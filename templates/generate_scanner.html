@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Generate Custom Scanner - TechStackLens{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-cogs me-2"></i>Generate Custom Scanner Script</h2>
+    <form method="post">
+        <div class="mb-3">
+            <label for="stacks" class="form-label">Select the technologies to scan:</label>
+            <div class="row">
+                {% for value, label in available_stacks %}
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="stacks" value="{{ value }}" id="stack_{{ value }}">
+                        <label class="form-check-label" for="stack_{{ value }}">{{ label }}</label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-download me-2"></i>Generate & Download Script</button>
+    </form>
+    <div class="mt-3 small text-muted">
+        The generated script will include only the selected technologies and can be run directly on your target environment.
+    </div>
+</div>
+{% endblock %}

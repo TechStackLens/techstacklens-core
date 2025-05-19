@@ -384,5 +384,49 @@ def reset_state():
     flash("Application state has been reset", "success")
     return redirect(url_for('index'))
 
+@app.route('/generate_scanner', methods=['GET', 'POST'])
+def generate_scanner():
+    """Dynamically generate a scanner script based on user-selected technologies."""
+    if request.method == 'POST':
+        selected_stacks = request.form.getlist('stacks')  # e.g., ['iis', 'lamp', 'tomcat']
+        script_lines = [
+            "#!/usr/bin/env python3",
+            '"""TechStackLens Custom Scanner Script\n\nGenerated for: ' + ', '.join(selected_stacks) + '\n"""',
+            "import sys, json, logging",
+            "from pathlib import Path",
+            "from datetime import datetime",
+            "# ...existing code...",
+        ]
+        # Add imports for each selected stack
+        if 'iis' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.iis_scanner import IISScanner")
+        if 'network' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.network_scanner import NetworkScanner")
+        if 'lamp' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.lamp_scanner import LAMPScanner")
+        if 'cloud' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.cloud_scanner import CloudScanner")
+        if 'tomcat' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.tomcat_scanner import TomcatScanner  # (if implemented)")
+        # ...add more as needed...
+        script_lines.append("# ...main logic would go here, similar to collection_script.py...")
+        script_content = '\n'.join(script_lines)
+        # Write to a temp file and send as download
+        with tempfile.NamedTemporaryFile('w+', delete=False, suffix='.py') as tmpf:
+            tmpf.write(script_content)
+            tmpf.flush()
+            tmpf.seek(0)
+            return send_file(tmpf.name, as_attachment=True, download_name='techstacklens_custom_scanner.py')
+    # If GET, render a form for stack selection
+    available_stacks = [
+        ('iis', 'Windows IIS'),
+        ('network', 'Network'),
+        ('lamp', 'LAMP Stack'),
+        ('cloud', 'Cloud Infrastructure'),
+        ('tomcat', 'Tomcat'),
+        # ...add more as implemented...
+    ]
+    return render_template('generate_scanner.html', available_stacks=available_stacks)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

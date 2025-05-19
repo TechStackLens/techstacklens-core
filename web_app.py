@@ -375,7 +375,7 @@ def generate_scanner():
             script_lines.append("from techstacklens.scanner.docker_scanner import DockerScanner")
         script_lines.append("# ...main logic would go here, similar to collection_script.py...")
         script_content = '\n'.join(script_lines)
-        # Write to a temp .py file, then zip it and send as download
+        # Write to a temp .py file, then zip it and move to output dir
         with tempfile.TemporaryDirectory() as tmpdir:
             script_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.py')
             with open(script_path, 'w') as f:
@@ -383,14 +383,10 @@ def generate_scanner():
             zip_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.zip')
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 zipf.write(script_path, arcname='techstacklens_custom_scanner.py')
-            # Open the zip file in binary mode and send it directly
-            with open(zip_path, 'rb') as zipf:
-                return send_file(
-                    zipf,
-                    as_attachment=True,
-                    download_name='techstacklens_custom_scanner.zip',
-                    mimetype='application/zip'
-                )
+            # Move the zip to output dir for persistent serving
+            output_zip_path = os.path.join('output', 'techstacklens_custom_scanner.zip')
+            os.replace(zip_path, output_zip_path)
+        return send_file(output_zip_path, as_attachment=True, download_name='techstacklens_custom_scanner.zip', mimetype='application/zip')
     # If GET, render a form for stack selection
     available_stacks = [
         ('iis', 'Windows IIS'),

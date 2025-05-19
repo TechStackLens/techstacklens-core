@@ -383,7 +383,14 @@ def generate_scanner():
             zip_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.zip')
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 zipf.write(script_path, arcname='techstacklens_custom_scanner.py')
-            return send_file(zip_path, as_attachment=True, download_name='techstacklens_custom_scanner.zip')
+            # Open the zip file in binary mode and send it directly
+            with open(zip_path, 'rb') as zipf:
+                return send_file(
+                    zipf,
+                    as_attachment=True,
+                    download_name='techstacklens_custom_scanner.zip',
+                    mimetype='application/zip'
+                )
     # If GET, render a form for stack selection
     available_stacks = [
         ('iis', 'Windows IIS'),

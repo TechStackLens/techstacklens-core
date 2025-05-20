@@ -138,94 +138,71 @@ def run_scan():
 def analyze_dependencies():
     """Analyze dependencies from scan results."""
     user_state = user_scan_states[session['user_id']]
-    # Check if we have combined results from multiple file uploads
-    if user_state.get("combined_results"):
-        combined_results = user_state["combined_results"]
-    else:
-        # Otherwise, build combined results from individual scans
+    # Use combined_results from upload or scanning
+    combined_results = user_state.get("combined_results")
+    if not combined_results:
+        # Fallback: build combined results from any legacy per-stack results
         combined_results = {}
-        
-        # Check all possible scan types
-        scan_types = [
-            "iis_scan_results", 
-            "network_scan_results", 
-            "aws_scan_results", 
-            "azure_scan_results", 
-            "gcp_scan_results", 
-            "lamp_scan_results"
-        ]
-        
-        for scan_type in scan_types:
+        for scan_type in [
+            "iis_scan_results", "network_scan_results", "aws_scan_results", "azure_scan_results", "gcp_scan_results", "lamp_scan_results", "xampp_scan_results"
+        ]:
             if user_state.get(scan_type):
                 combined_results.update(user_state[scan_type])
-    
     if not combined_results:
         flash("No scan results available for analysis. Please upload scan data first.", "danger")
         return redirect(url_for('index'))
-    
     try:
         analyzer = DependencyAnalyzer()
         dependency_graph = analyzer.analyze(combined_results)
         user_state["dependency_graph"] = dependency_graph
-        
         # Save analysis results
         with open(OUTPUT_DIR / "dependency_analysis.json", 'w') as f:
             json.dump(dependency_graph, f, indent=2)
-        
         # Generate visualization
         visualizer = GraphGenerator()
         graph_path = OUTPUT_DIR / "dependency_graph"
         visualizer.generate(dependency_graph, str(graph_path))
         user_state["visualization_path"] = f"{graph_path}.html"
-        
-        # Count analyzed resources
         node_count = len(dependency_graph.get("nodes", []))
         edge_count = len(dependency_graph.get("edges", []))
-        
         flash(f"Dependency analysis completed successfully: {node_count} nodes and {edge_count} relationships mapped", "success")
     except Exception as e:
         logger.error(f"Error during dependency analysis: {e}")
         flash(f"Error during dependency analysis: {e}", "danger")
-    
     return redirect(url_for('index'))
 
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
     """Generate a report from scan and analysis results."""
     user_state = user_scan_states[session['user_id']]
-    combined_results = {}
-    
-    if user_state["iis_scan_results"]:
-        combined_results.update(user_state["iis_scan_results"])
-    
-    if user_state["network_scan_results"]:
-        combined_results.update(user_state["network_scan_results"])
-    
+    combined_results = user_state.get("combined_results")
+    if not combined_results:
+        # Fallback: build combined results from any legacy per-stack results
+        combined_results = {}
+        for scan_type in [
+            "iis_scan_results", "network_scan_results", "aws_scan_results", "azure_scan_results", "gcp_scan_results", "lamp_scan_results", "xampp_scan_results"
+        ]:
+            if user_state.get(scan_type):
+                combined_results.update(user_state[scan_type])
     if not combined_results:
         flash("No scan results available for report generation", "danger")
         return redirect(url_for('index'))
-    
     if not user_state["dependency_graph"]:
         flash("No dependency analysis available for report generation", "danger")
         return redirect(url_for('index'))
-    
     try:
         reporter = ReportGenerator()
         report_path = OUTPUT_DIR / "techstacklens_report.pdf"
         reporter.generate_report(combined_results, user_state["dependency_graph"], str(report_path))
-        
-        # Store HTML report path
         html_report_path = OUTPUT_DIR / "techstacklens_report.html"
         if os.path.exists(html_report_path):
             user_state["report_path"] = str(html_report_path)
         else:
             user_state["report_path"] = str(report_path)
-        
         flash("Report generated successfully", "success")
     except Exception as e:
         logger.error(f"Error during report generation: {e}")
         flash(f"Error during report generation: {e}", "danger")
-    
     return redirect(url_for('index'))
 
 @app.route('/results')
@@ -346,25 +323,28 @@ def generate_scanner():
         script_lines = [
             "#!/usr/bin/env python3",
             '"""TechStackLens Custom Scanner Script\n\nGenerated for: ' + ', '.join(selected_stacks) + '\n"""',
-            "import sys, json, logging",
+            "import sys",
+            "import json",
+            "import logging",
+            "import argparse",
             "from pathlib import Path",
             "from datetime import datetime",
         ]
         # Add imports for each selected stack
-        if 'iis' in selected_stacks:
-            script_lines.append("from techstacklens.scanner.iis_scanner import IISScanner")
         if 'network' in selected_stacks:
             script_lines.append("from techstacklens.scanner.network_scanner import NetworkScanner")
-        if 'lamp' in selected_stacks:
-            script_lines.append("from techstacklens.scanner.lamp_scanner import LAMPScanner")
-        if 'cloud' in selected_stacks:
-            script_lines.append("from techstacklens.scanner.cloud_scanner import CloudScanner")
         if 'tomcat' in selected_stacks:
             script_lines.append("from techstacklens.scanner.tomcat_scanner import TomcatScanner")
         if 'jboss' in selected_stacks:
             script_lines.append("from techstacklens.scanner.jboss_scanner import JBossScanner")
         if 'xampp' in selected_stacks:
             script_lines.append("from techstacklens.scanner.xampp_scanner import XAMPPScanner")
+        if 'iis' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.iis_scanner import IISScanner")
+        if 'lamp' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.lamp_scanner import LAMPScanner")
+        if 'cloud' in selected_stacks:
+            script_lines.append("from techstacklens.scanner.cloud_scanner import CloudScanner")
         if 'nodejs' in selected_stacks:
             script_lines.append("from techstacklens.scanner.nodejs_scanner import NodejsScanner")
         if 'react' in selected_stacks:
@@ -373,17 +353,104 @@ def generate_scanner():
             script_lines.append("from techstacklens.scanner.kubectl_scanner import KubectlScanner")
         if 'docker' in selected_stacks:
             script_lines.append("from techstacklens.scanner.docker_scanner import DockerScanner")
-        script_lines.append("# ...main logic would go here, similar to collection_script.py...")
-        script_content = '\n'.join(script_lines)
-        # Write to a temp .py file, then zip it and move to output dir
+
+        script_lines.append("")
+        script_lines.append("def main():")
+        script_lines.append("    parser = argparse.ArgumentParser(description=\"TechStackLens Custom Scanner\")")
+        if 'network' in selected_stacks:
+            script_lines.append("    parser.add_argument('--network-range', help='Network range to scan (e.g., 192.168.1.0/24)')")
+        script_lines.append("    parser.add_argument('--output', default='techstacklens_scan_results.json', help='Output JSON file')")
+        script_lines.append("    args = parser.parse_args()")
+        script_lines.append("")
+        script_lines.append("    results = {}")
+        # Add scanner calls
+        if 'network' in selected_stacks:
+            script_lines.append("    if args.network_range:")
+            script_lines.append("        try:")
+            script_lines.append("            scanner = NetworkScanner()")
+            script_lines.append("            results.update(scanner.scan(args.network_range))")
+            script_lines.append("        except Exception as e:")
+            script_lines.append("            logging.warning(f'Network scan failed: {e}')")
+        if 'tomcat' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = TomcatScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'Tomcat scan failed: {e}')")
+        if 'jboss' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = JBossScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'JBoss scan failed: {e}')")
+        if 'xampp' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = XAMPPScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'XAMPP scan failed: {e}')")
+        if 'iis' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = IISScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'IIS scan failed: {e}')")
+        if 'lamp' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = LAMPScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'LAMP scan failed: {e}')")
+        if 'cloud' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = CloudScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'Cloud scan failed: {e}')")
+        if 'nodejs' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = NodejsScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'Node.js scan failed: {e}')")
+        if 'react' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = ReactScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'React scan failed: {e}')")
+        if 'kubernetes' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = KubectlScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'Kubernetes scan failed: {e}')")
+        if 'docker' in selected_stacks:
+            script_lines.append("    try:")
+            script_lines.append("        scanner = DockerScanner()")
+            script_lines.append("        results.update(scanner.scan())")
+            script_lines.append("    except Exception as e:")
+            script_lines.append("        logging.warning(f'Docker scan failed: {e}')")
+        script_lines.append("")
+        script_lines.append("    with open(args.output, 'w') as f:")
+        script_lines.append("        json.dump(results, f, indent=2)")
+        script_lines.append("    print(f'Scan complete. Results saved to {args.output}')")
+        script_lines.append("")
+        script_lines.append("if __name__ == '__main__':")
+        script_lines.append("    main()")
+
+        # Write to a temp .py file, then zip it and copy to output dir
         with tempfile.TemporaryDirectory() as tmpdir:
             script_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.py')
             with open(script_path, 'w') as f:
-                f.write(script_content)
+                f.write('\n'.join(script_lines))
             zip_path = os.path.join(tmpdir, 'techstacklens_custom_scanner.zip')
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 zipf.write(script_path, arcname='techstacklens_custom_scanner.py')
-            # Copy the zip to output dir for persistent serving (works across devices)
+                # Add the icon to the package
+                icon_path = os.path.join('static', 'generated-icon.png')
+                if os.path.exists(icon_path):
+                    zipf.write(icon_path, arcname='generated-icon.png')
             output_zip_path = os.path.join('output', 'techstacklens_custom_scanner.zip')
             with open(zip_path, 'rb') as src, open(output_zip_path, 'wb') as dst:
                 dst.write(src.read())

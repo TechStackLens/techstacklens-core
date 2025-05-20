@@ -50,6 +50,7 @@ The tool is a kit of modular components, with stack-specific scanners and shared
   - Docker: List running containers, images, and exposed ports.
   - Microsoft SQL Server, Oracle, PostgreSQL: Inventory databases and connection strings.
   - Add plugin architecture for easy extension to new stacks.
+- **Dynamic Scanner Generation**: The web UI allows users to select compatible stacks and generate a custom scanner script. The script outputs a single JSON file with a top-level dictionary, where each key is a scan type (e.g., `network_scan`, `iis_scan`, `lamp_scan`, etc.).
 
 - Support plugin architecture for adding new stack scanners.
 
@@ -57,6 +58,7 @@ The tool is a kit of modular components, with stack-specific scanners and shared
 - Map dependencies based on scanner output (e.g., Web → Middleware → Database).
 - For Windows-IIS: Use SNI hostnames and port data to map site-specific dependencies.
 - Apply basic Well-Architected Framework principles (reliability, security).
+- **Analyzer/Reporter**: The analyzer and report generator process this combined JSON format, supporting modular extension as new scanners are added.
 
 ### 3.3. Visualizer
 - Generate static graphs (Graphviz) showing hosts and SNI sites with dependencies.

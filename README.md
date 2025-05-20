@@ -11,9 +11,14 @@ TechStackLens is a lightweight, open-source IT assessment tool designed for solu
 ## Quick Start
 1. Clone this repository
 2. Install dependencies: `pip install -r requirements.txt` or use `pyproject.toml`
-3. Run a scanner script (e.g., `python collection_script.py` for Windows-IIS)
-4. Upload the generated JSON to the web app (`python web_app.py`)
-5. Analyze, visualize, and generate reports via the web UI
+3. Use the web UI to generate a custom scanner script for your environment (select the stacks you want to scan)
+4. Run the generated script on your target system (see script usage for CLI options)
+5. Upload the generated JSON results to the web app (`python web_app.py`)
+6. Analyze, visualize, and generate reports via the web UI
+
+## Scanner Output Format
+- The generated scanner script outputs a single JSON file with a top-level dictionary. Each key corresponds to a scan type (e.g., `network_scan`, `iis_scan`, `lamp_scan`, etc.).
+- This format is required for analysis and reporting.
 
 ## Project Structure
 - `techstacklens/` — Core package (scanner, analyzer, visualizer, reporter, utils)

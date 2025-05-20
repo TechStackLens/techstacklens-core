@@ -18,6 +18,28 @@ TechStackLens supports scanning a variety of technology stacks. Each scanner is 
 - **Kubernetes Scanner** (`kubectl_scanner.py`): Uses `kubectl` to inventory pods, services, and ingress.
 - **Docker Scanner** (`docker_scanner.py`): Lists running containers and images.
 
+## JSON Output Format
+
+- The generated scanner script outputs a single JSON file with a top-level dictionary. Each key corresponds to a scan type, e.g.:
+
+```json
+{
+  "network_scan": { ... },
+  "iis_scan": { ... },
+  "lamp_scan": { ... },
+  "cloud_scan": { ... },
+  "tomcat_scan": { ... },
+  "jboss_scan": { ... },
+  "xampp_scan": { ... },
+  "nodejs_scan": { ... },
+  "react_scan": { ... },
+  "kubectl_scan": { ... },
+  "docker_scan": { ... }
+}
+```
+- Each scan module is responsible for returning its results under a unique key (e.g., `network_scan`, `tomcat_scan`).
+- The analyzer and report generator expect this structure for all uploaded scan results.
+
 ## Usage
 - Use the web UI to generate a custom scanner script tailored to your environment. The script will import only the relevant scanner modules.
 - The `scanners/` folder is now reserved for thin entry-point scripts if needed for packaging, but is not required for most users.

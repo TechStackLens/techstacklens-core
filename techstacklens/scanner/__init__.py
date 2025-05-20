@@ -1,4 +1,4 @@
 """
 Scanner module initialization.
-Contains components for scanning IIS configurations and network dependencies.
+Contains components for scanning configurations and network dependencies.
 """

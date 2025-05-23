@@ -811,3 +811,22 @@ class ReportGenerator:
         
         logger.info(f"Text report generated: {output_path}")
         return output_path
+    
+    def generate_remediation_suggestions(self, data):
+        """Generate remediation suggestions based on identified issues."""
+        # Mock implementation for testing purposes
+        suggestions = []
+        for issue in data.get("issues", []):
+            if issue["type"] == "outdated_dependency":
+                suggestions.append(f"Upgrade {issue['name']} to the latest version.")
+            elif issue["type"] == "security_vulnerability":
+                suggestions.append(f"Address high-severity vulnerability in {issue['name']}.")
+        return suggestions
+
+    def highlight_modernization_opportunities(self, data):
+        """Highlight opportunities for modernization based on the architecture."""
+        # Mock implementation for testing purposes
+        return {
+            "serverless_migration": "Consider migrating to serverless architecture.",
+            "containerization": "Evaluate containerizing services for better scalability."
+        }

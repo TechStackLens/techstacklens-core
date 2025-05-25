@@ -319,80 +319,108 @@ def generate_scanner():
     import zipfile
     import tempfile
     if request.method == 'POST':
-        selected_stacks = request.form.getlist('stacks')
-        is_windows_only = (
-            set(selected_stacks) == {'iis'}
-        )
-        if is_windows_only:
-            # Generate PowerShell script for IIS scanning
+        # Normalize stack names for robust comparison
+        selected_stacks = [s.strip().lower() for s in request.form.getlist('stacks')]
+        # If IIS is selected, always generate a PowerShell script (assume Windows)
+        if 'iis' in selected_stacks:
             ps_lines = [
-                '# PowerShell IIS Scanner Script',
+                '# PowerShell TechStackLens Scanner Script',
                 '$ErrorActionPreference = "Stop"',
                 '',
-                '# Get IIS Sites',
-                '$sites = Get-Website | Select-Object Name, ID, State, PhysicalPath',
-                '',
-                '# Get IIS Bindings',
-                '$bindings = Get-WebBinding | Select-Object protocol, bindingInformation, HostHeader, Port, IP',
-                '',
-                '# Build results object',
-                '$results = @{',
-                '    iis_sites = @()',
-                '    hostname_map = @{}',
-                '    app_types = @{}',
-                '}',
-                '',
-                'foreach ($site in $sites) {',
-                '    $siteObj = @{',
-                '        id = $site.ID',
-                '        name = $site.Name',
-                '        state = $site.State',
-                '        physical_path = $site.PhysicalPath',
-                '        bindings = @()',
-                '    }',
-                '    $siteBindings = $bindings | Where-Object { $_.bindingInformation -like "*" -and $_.HostHeader -ne $null }',
-                '    foreach ($binding in $siteBindings) {',
-                '        $bindingObj = @{',
-                '            protocol = $binding.protocol',
-                '            bindingInformation = $binding.bindingInformation',
-                '            hostname = $binding.HostHeader',
-                '            port = $binding.Port',
-                '            ip = $binding.IP',
-                '        }',
-                '        $siteObj.bindings += $bindingObj',
-                '        if ($binding.HostHeader) {',
-                '            $results.hostname_map[$binding.HostHeader] = @{',
-                '                site_name = $site.Name',
-                '                site_id = $site.ID',
-                '                ip = $binding.IP',
-                '                port = $binding.Port',
-                '                protocol = $binding.protocol',
-                '            }',
-                '        }',
-                '    }',
-                '    $results.iis_sites += $siteObj',
-                '}',
-                '',
+            ]
+            # IIS scanning logic
+            if 'iis' in selected_stacks:
+                ps_lines += [
+                    '# Get IIS Sites',
+                    '$sites = Get-Website | Select-Object Name, ID, State, PhysicalPath',
+                    '',
+                    '# Get IIS Bindings',
+                    '$bindings = Get-WebBinding | Select-Object protocol, bindingInformation, HostHeader, Port, IP',
+                    '',
+                    '# Build results object',
+                    '$results = @{',
+                    '    iis_sites = @()',
+                    '    hostname_map = @{}',
+                    '    app_types = @{}',
+                    '}',
+                    '',
+                    'foreach ($site in $sites) {',
+                    '    $siteObj = @{',
+                    '        id = $site.ID',
+                    '        name = $site.Name',
+                    '        state = $site.State',
+                    '        physical_path = $site.PhysicalPath',
+                    '        bindings = @()',
+                    '    }',
+                    '    $siteBindings = $bindings | Where-Object { $_.bindingInformation -like "*" -and $_.HostHeader -ne $null }',
+                    '    foreach ($binding in $siteBindings) {',
+                    '        $bindingObj = @{',
+                    '            protocol = $binding.protocol',
+                    '            bindingInformation = $binding.bindingInformation',
+                    '            hostname = $binding.HostHeader',
+                    '            port = $binding.Port',
+                    '            ip = $binding.IP',
+                    '        }',
+                    '        $siteObj.bindings += $bindingObj',
+                    '        if ($binding.HostHeader) {',
+                    '            $results.hostname_map[$binding.HostHeader] = @{',
+                    '                site_name = $site.Name',
+                    '                site_id = $site.ID',
+                    '                ip = $binding.IP',
+                    '                port = $binding.Port',
+                    '                protocol = $binding.protocol',
+                    '            }',
+                    '        }',
+                    '    }',
+                    '    $results.iis_sites += $siteObj',
+                    '}',
+                    '',
+                ]
+            # Network scanning logic (using nmap if available)
+            if 'network' in selected_stacks:
+                ps_lines += [
+                    '# Network scan using nmap',
+                    '$nmapPath = "nmap"',
+                    '$networkRange = Read-Host "Enter network range to scan (e.g., 192.168.1.0/24)"',
+                    '$nmapOutput = "nmap_scan.xml"',
+                    'Write-Host "Running nmap scan..."',
+                    'if ($networkRange) {',
+                    '    & $nmapPath -sV -oX $nmapOutput $networkRange',
+                    '    $results.network_scan = Get-Content $nmapOutput -Raw',
+                    '}',
+                    '',
+                ]
+            # Docker scanning logic (basic example)
+            if 'docker' in selected_stacks:
+                ps_lines += [
+                    '# Docker scan',
+                    'Write-Host "Collecting Docker info..."',
+                    '$dockerInfo = & docker info 2>&1',
+                    '$results.docker_info = $dockerInfo',
+                    '',
+                ]
+            # Add more PowerShell logic for other Windows-friendly stacks as needed
+            ps_lines += [
                 '# Output as JSON',
                 '$json = $results | ConvertTo-Json -Depth 6',
-                '$output = "techstacklens_iis_scan_results.json"',
+                '$output = "techstacklens_scan_results.json"',
                 'Set-Content -Path $output -Value $json',
                 'Write-Host "Scan complete. Results saved to $output"',
             ]
             with tempfile.TemporaryDirectory() as tmpdir:
-                script_path = os.path.join(tmpdir, 'techstacklens_iis_scanner.ps1')
+                script_path = os.path.join(tmpdir, 'techstacklens_scanner.ps1')
                 with open(script_path, 'w', encoding='utf-8') as f:
                     f.write('\n'.join(ps_lines))
-                zip_path = os.path.join(tmpdir, 'techstacklens_iis_scanner.zip')
+                zip_path = os.path.join(tmpdir, 'techstacklens_scanner.zip')
                 with zipfile.ZipFile(zip_path, 'w') as zipf:
-                    zipf.write(script_path, arcname='techstacklens_iis_scanner.ps1')
+                    zipf.write(script_path, arcname='techstacklens_scanner.ps1')
                     icon_path = os.path.join('static', 'generated-icon.png')
                     if os.path.exists(icon_path):
                         zipf.write(icon_path, arcname='generated-icon.png')
-                output_zip_path = os.path.join('output', 'techstacklens_iis_scanner.zip')
+                output_zip_path = os.path.join('output', 'techstacklens_scanner.zip')
                 with open(zip_path, 'rb') as src, open(output_zip_path, 'wb') as dst:
                     dst.write(src.read())
-            return send_file(output_zip_path, as_attachment=True, download_name='techstacklens_iis_scanner.zip', mimetype='application/zip')
+            return send_file(output_zip_path, as_attachment=True, download_name='techstacklens_scanner.zip', mimetype='application/zip')
         else:
             # Default: Python script for all other or mixed stacks
             script_lines = [

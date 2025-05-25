@@ -4,6 +4,7 @@ import tempfile
 import shutil
 import pytest
 from web_app import app
+from techstacklens.scanner.script_generator import generate_scanner_script
 
 @pytest.fixture
 def client():
@@ -11,10 +12,16 @@ def client():
     with app.test_client() as client:
         yield client
 
-def extract_script_from_zip(zip_path, script_name='techstacklens_custom_scanner.py'):
+def extract_script_from_zip(zip_path, script_name=None):
     with zipfile.ZipFile(zip_path, 'r') as zipf:
         with tempfile.TemporaryDirectory() as tmpdir:
             zipf.extractall(tmpdir)
+            # Determine script name by extension
+            if script_name is None:
+                for fname in os.listdir(tmpdir):
+                    if fname.startswith('techstacklens_scanner.'):
+                        script_name = fname
+                        break
             script_path = os.path.join(tmpdir, script_name)
             with open(script_path, 'r') as f:
                 return f.read()
@@ -50,7 +57,10 @@ def test_generate_scanner_includes_classes(client, stacks):
         tmpzip.write(response.data)
         tmpzip_path = tmpzip.name
     try:
-        script_content = extract_script_from_zip(tmpzip_path)
+        # Determine script extension
+        script_ext = 'ps1' if 'iis' in stacks else 'py'
+        script_name = f'techstacklens_scanner.{script_ext}'
+        script_content = extract_script_from_zip(tmpzip_path, script_name=script_name)
         for stack in stacks:
             expected = STACK_CLASS_MAP[stack]
             assert expected in script_content, f"Expected {expected} in generated script for stacks {stacks}"

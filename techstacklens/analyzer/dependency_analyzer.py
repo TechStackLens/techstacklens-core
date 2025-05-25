@@ -196,6 +196,111 @@ class DependencyAnalyzer:
                         }
                         dependency_graph["edges"].append(edge)
         
+        # MEAN stack support - process mean_scan results
+        if "mean_scan" in scan_results:
+            mean_data = scan_results["mean_scan"]
+            
+            # Add MongoDB node
+            if "mongodb" in mean_data:
+                mongo_node_id = "mean_mongodb"
+                mongo_node = {
+                    "id": mongo_node_id,
+                    "label": "MongoDB",
+                    "type": "database",
+                    "parent": None,
+                    "details": mean_data["mongodb"]
+                }
+                dependency_graph["nodes"].append(mongo_node)
+                
+                # Add edge from app to MongoDB (inferred)
+                for node in dependency_graph["nodes"]:
+                    if node["id"].startswith("app_"):
+                        edge_id = f"{node['id']}_to_{mongo_node_id}"
+                        edge = {
+                            "id": edge_id,
+                            "source": node["id"],
+                            "target": mongo_node_id,
+                            "type": "app_to_db",
+                            "dependency_type": "inferred",
+                            "confidence": "high"
+                        }
+                        dependency_graph["edges"].append(edge)
+            
+            # Add Express node
+            if "express" in mean_data:
+                express_node_id = "mean_express"
+                express_node = {
+                    "id": express_node_id,
+                    "label": "Express",
+                    "type": "middleware",
+                    "parent": None,
+                    "details": mean_data["express"]
+                }
+                dependency_graph["nodes"].append(express_node)
+                
+                # Add edge from Express to MongoDB
+                if "mongodb" in mean_data:
+                    edge_id = f"{express_node_id}_to_{mongo_node_id}"
+                    edge = {
+                        "id": edge_id,
+                        "source": express_node_id,
+                        "target": mongo_node_id,
+                        "type": "app_to_db",
+                        "dependency_type": "direct",
+                        "confidence": "high"
+                    }
+                    dependency_graph["edges"].append(edge)
+            
+            # Add Angular node
+            if "angular" in mean_data:
+                angular_node_id = "mean_angular"
+                angular_node = {
+                    "id": angular_node_id,
+                    "label": "Angular",
+                    "type": "frontend",
+                    "parent": None,
+                    "details": mean_data["angular"]
+                }
+                dependency_graph["nodes"].append(angular_node)
+                
+                # Add edge from Angular to Express
+                if "express" in mean_data:
+                    edge_id = f"{angular_node_id}_to_{express_node_id}"
+                    edge = {
+                        "id": edge_id,
+                        "source": angular_node_id,
+                        "target": express_node_id,
+                        "type": "web_to_app",
+                        "dependency_type": "direct",
+                        "confidence": "high"
+                    }
+                    dependency_graph["edges"].append(edge)
+            
+            # Add Node.js node
+            if "nodejs" in mean_data:
+                nodejs_node_id = "mean_nodejs"
+                nodejs_node = {
+                    "id": nodejs_node_id,
+                    "label": "Node.js",
+                    "type": "runtime",
+                    "parent": None,
+                    "details": mean_data["nodejs"]
+                }
+                dependency_graph["nodes"].append(nodejs_node)
+                
+                # Add edge from Express to Node.js
+                if "express" in mean_data:
+                    edge_id = f"{express_node_id}_to_{nodejs_node_id}"
+                    edge = {
+                        "id": edge_id,
+                        "source": express_node_id,
+                        "target": nodejs_node_id,
+                        "type": "app_to_runtime",
+                        "dependency_type": "direct",
+                        "confidence": "high"
+                    }
+                    dependency_graph["edges"].append(edge)
+        
         # Infer cross-server dependencies
         self._infer_dependencies(dependency_graph, hosts_by_ip)
         

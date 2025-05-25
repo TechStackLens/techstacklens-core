@@ -137,6 +137,9 @@ def generate_python_scanner(selected_stacks):
     if 'docker' in selected_stacks:
         with open(os.path.join(scanner_dir, 'docker_scanner.py'), 'r') as f:
             script_lines.append(f.read())
+    if 'mean' in selected_stacks:
+        with open(os.path.join(scanner_dir, 'mean_scanner.py'), 'r') as f:
+            script_lines.append(f.read())
     script_lines.append("")
     script_lines.append("def main():")
     script_lines.append("    parser = argparse.ArgumentParser(description=\"TechStackLens Custom Scanner\")")
@@ -213,6 +216,12 @@ def generate_python_scanner(selected_stacks):
         script_lines.append("        results.update(scanner.scan())")
         script_lines.append("    except Exception as e:")
         script_lines.append("        logging.warning(f'Docker scan failed: {e}')")
+    if 'mean' in selected_stacks:
+        script_lines.append("    try:")
+        script_lines.append("        scanner = MEANScanner()")
+        script_lines.append("        results.update(scanner.scan())")
+        script_lines.append("    except Exception as e:")
+        script_lines.append("        logging.warning(f'MEAN scan failed: {e}')")
     script_lines.append("")
     script_lines.append("    with open(args.output, 'w') as f:")
     script_lines.append("        json.dump(results, f, indent=2)")

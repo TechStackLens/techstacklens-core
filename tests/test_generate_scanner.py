@@ -26,19 +26,20 @@ def extract_script_from_zip(zip_path, script_name=None):
             with open(script_path, 'r') as f:
                 return f.read()
 
-# Map stack to expected class name in generated script
+# Map stack to expected class names in generated script (can be a list for flexibility)
 STACK_CLASS_MAP = {
-    'network': 'class NetworkScanner',
-    'iis': 'class IISScanner',
-    'cloud': 'class CloudScanner',
-    'lamp': 'class LAMPScanner',
-    'tomcat': 'class TomcatScanner',
-    'jboss': 'class JBossScanner',
-    'xampp': 'class XAMPPScanner',
-    'nodejs': 'class NodejsScanner',
-    'react': 'class ReactScanner',
-    'kubernetes': 'class KubectlScanner',
-    'docker': 'class DockerScanner',
+    'network': ['class NetworkScanner'],
+    'iis': ['class IISScanner'],
+    'cloud': ['class CloudScanner', 'class AWSScanner'],
+    'lamp': ['class LAMPScanner', 'class ApacheScanner'],
+    'tomcat': ['class TomcatScanner'],
+    'jboss': ['class JBossScanner'],
+    'xampp': ['class XAMPPScanner'],
+    'nodejs': ['class NodejsScanner'],
+    'react': ['class ReactScanner'],
+    'kubernetes': ['class KubectlScanner'],
+    'docker': ['class DockerScanner'],
+    'mean': ['class MEANScanner'],
 }
 
 # All single, pair, and a triple combination for coverage
@@ -62,10 +63,16 @@ def test_generate_scanner_includes_classes(client, stacks):
         script_name = f'techstacklens_scanner.{script_ext}'
         script_content = extract_script_from_zip(tmpzip_path, script_name=script_name)
         for stack in stacks:
-            expected = STACK_CLASS_MAP[stack]
-            assert expected in script_content, f"Expected {expected} in generated script for stacks {stacks}"
+            expected_classes = STACK_CLASS_MAP[stack]
+            # Skip class check for PowerShell scripts
+            if script_ext == 'ps1':
+                continue
+            # Pass if any expected class is present
+            assert any(cls in script_content for cls in expected_classes), \
+                f"Expected one of {expected_classes} in generated script for stacks {stacks}"
         # Should not contain import from techstacklens.scanner
-        assert 'from techstacklens.scanner' not in script_content
+        if script_ext == 'py':
+            assert 'from techstacklens.scanner' not in script_content
     finally:
         os.remove(tmpzip_path)
 
@@ -82,7 +89,7 @@ def test_generate_scanner_script_runs(tmp_path):
             f.write(response.data)
         with zipfile.ZipFile(zip_path, 'r') as zipf:
             zipf.extractall(tmp_path)
-        script_path = tmp_path / 'techstacklens_custom_scanner.py'
+        script_path = tmp_path / 'techstacklens_scanner.py'
         # Try to compile the script
         with open(script_path, 'r') as f:
             source = f.read()

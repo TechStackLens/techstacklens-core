@@ -40,6 +40,7 @@ STACK_CLASS_MAP = {
     'kubernetes': ['class KubectlScanner'],
     'docker': ['class DockerScanner'],
     'mean': ['class MEANScanner'],
+    'rails': ['class RailsScanner'],
 }
 
 # All single, pair, and a triple combination for coverage

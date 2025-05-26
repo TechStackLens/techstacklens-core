@@ -9,6 +9,7 @@ TechStackLens is a lightweight, open-source IT assessment tool designed for solu
 - **Visualizer**: Interactive dependency maps
 - **Report Generator**: Creates actionable reports
 - **Script Generator**: The web UI now uses `techstacklens.scanner.script_generator` to generate standalone scanner scripts (PowerShell or Python) based on selected stacks. This logic is fully modular and can be reused in other interfaces.
+- **Rails Scanner**: Scans Ruby on Rails apps, gems, and related configuration (extensible template for new stacks).
 
 ## Quick Start
 
@@ -51,6 +52,41 @@ For more on common technology stacks ("TechStacks"), see [Webopedia: Web Stack A
 ## TODO / Roadmap
 
 - Expand support to additional technology stacks (see [Webopedia reference](https://www.webopedia.com/reference/webstack-acronyms/))
-- Make it easy to add new stack scanners and extend the platform for future technologies
+- Make it easy to add new stack scanners and extend the platform for future technologies (see docs/scanners.md for instructions)
 - Improve plugin/extensibility model for custom scanning and reporting
 - Enhance documentation and onboarding for contributors
+- Standardize output schemas for all scanners to simplify analysis and reporting
+
+## Agentic MCP Architecture (Planned)
+
+TechStackLens is evolving toward an agentic MCP (Multi-Component Platform) architecture. Each major function—script generator, analyzer, report visualizer, etc.—will be implemented as an agent with a common interface. A central MCP controller will orchestrate workflows by dispatching messages to these agents. This will enable:
+
+- Loose coupling and easy extensibility (add new agents for new stacks or features)
+- Message-driven orchestration (CLI, web, or API)
+- Support for distributed or async operation in the future
+
+**Example agent interface:**
+
+```python
+class AgentBase:
+    def handle(self, message: dict) -> dict:
+        """Process a message and return a response."""
+        raise NotImplementedError
+```
+
+**Example MCP controller:**
+
+```python
+class MCPController:
+    def __init__(self):
+        self.agents = {}
+    def register_agent(self, name: str, agent: AgentBase):
+        self.agents[name] = agent
+    def dispatch(self, agent_name: str, message: dict) -> dict:
+        agent = self.agents.get(agent_name)
+        if not agent:
+            raise ValueError(f"No agent registered as {agent_name}")
+        return agent.handle(message)
+```
+
+See the project planning document for the migration task list.

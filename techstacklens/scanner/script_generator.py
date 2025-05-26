@@ -101,6 +101,7 @@ def generate_python_scanner(selected_stacks):
         "import argparse",
         "from pathlib import Path",
         "from datetime import datetime",
+        "from techstacklens.utils.output_standardizer import standardize_scan_output",
     ]
     # Inline scanner code for each selected stack
     scanner_dir = os.path.join(os.path.dirname(__file__), '')
@@ -139,6 +140,9 @@ def generate_python_scanner(selected_stacks):
             script_lines.append(f.read())
     if 'mean' in selected_stacks:
         with open(os.path.join(scanner_dir, 'mean_scanner.py'), 'r') as f:
+            script_lines.append(f.read())
+    if 'rails' in selected_stacks:
+        with open(os.path.join(scanner_dir, 'rails_scanner.py'), 'r') as f:
             script_lines.append(f.read())
     script_lines.append("")
     script_lines.append("def main():")
@@ -222,7 +226,15 @@ def generate_python_scanner(selected_stacks):
         script_lines.append("        results.update(scanner.scan())")
         script_lines.append("    except Exception as e:")
         script_lines.append("        logging.warning(f'MEAN scan failed: {e}')")
+    if 'rails' in selected_stacks:
+        script_lines.append("    try:")
+        script_lines.append("        scanner = RailsScanner()")
+        script_lines.append("        results.update(scanner.scan())")
+        script_lines.append("    except Exception as e:")
+        script_lines.append("        logging.warning(f'Rails scan failed: {e}')")
     script_lines.append("")
+    script_lines.append("    # Standardize output structure")
+    script_lines.append("    results = standardize_scan_output(results)")
     script_lines.append("    with open(args.output, 'w') as f:")
     script_lines.append("        json.dump(results, f, indent=2)")
     script_lines.append("    print(f'Scan complete. Results saved to {args.output}')")

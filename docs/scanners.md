@@ -19,6 +19,7 @@ TechStackLens supports scanning a variety of technology stacks. Each scanner is 
 - **React Scanner** (`react_scanner.py`): Scans for React apps and their dependencies.
 - **Kubernetes Scanner** (`kubectl_scanner.py`): Uses `kubectl` to inventory pods, services, and ingress.
 - **Docker Scanner** (`docker_scanner.py`): Lists running containers and images.
+- **Rails Scanner** (`rails_scanner.py`): Scans Ruby on Rails apps, gems, and related configuration.
 
 ## JSON Output Format
 
@@ -53,6 +54,14 @@ TechStackLens supports scanning a variety of technology stacks. Each scanner is 
 - All core scanning logic is maintained in `techstacklens/scanner/` for modularity and reuse.
 - The script generation logic is now in `techstacklens/scanner/script_generator.py` and is used by the web UI to generate standalone scanner scripts (PowerShell or Python) based on user selection.
 - Additional stack scanners (e.g., Tomcat, JBoss) can be added as new modules.
+
+## How to Add a New Stack Scanner
+
+1. Create a new scanner module in `techstacklens/scanner/` (see `rails_scanner.py` for a template).
+2. Register your scanner in `script_generator.py` so it can be included in generated scripts.
+3. Add analyzer logic in `dependency_analyzer.py` to recognize and process your stack's output.
+4. Add or update tests in `tests/` to cover your new stack (see `test_generate_scanner.py` and `test_analyzer_rails.py`).
+5. Document your stack in this file and in the main `README.md`.
 
 ---
 

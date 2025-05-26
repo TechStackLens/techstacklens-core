@@ -11,6 +11,63 @@ The tool is a kit of modular components, with stack-specific scanners and shared
 - **Solution Engine**: Proposes architectural improvements.
 - **Report Generator**: Creates actionable reports.
 
+## 2.1. Agentic MCP Architecture (Planned)
+
+TechStackLens is being refactored into an agentic MCP (Multi-Component Platform) architecture. Each major function—script generator, analyzer, report visualizer, etc.—will be implemented as an agent with a common interface. A central MCP controller will orchestrate workflows by dispatching messages to these agents.
+
+### Agent Interface Example
+
+```python
+class AgentBase:
+    def handle(self, message: dict) -> dict:
+        """Process a message and return a response."""
+        raise NotImplementedError
+```
+
+### MCP Controller Example
+
+```python
+class MCPController:
+    def __init__(self):
+        self.agents = {}
+    def register_agent(self, name: str, agent: AgentBase):
+        self.agents[name] = agent
+    def dispatch(self, agent_name: str, message: dict) -> dict:
+        agent = self.agents.get(agent_name)
+        if not agent:
+            raise ValueError(f"No agent registered as {agent_name}")
+        return agent.handle(message)
+```
+
+### Component Hosting Table
+
+| Component         | Hosting Location         | Notes |
+|-------------------|-------------------------|-------|
+| Front-end (Flask Web UI) | PythonAnywhere (or similar PaaS) | Public-facing, user interaction |
+| MCP Controller    | PythonAnywhere (or dedicated backend) | Orchestrates all agents |
+| Script Generator Agent | PythonAnywhere backend | Generates and serves scripts |
+| Analyzer Agent    | PythonAnywhere backend | Handles uploaded scan data |
+| Visualizer Agent  | PythonAnywhere backend | Generates graphs/visuals |
+| Report Generator Agent | PythonAnywhere backend | Produces reports |
+| Storage (scan results, reports) | PythonAnywhere file storage or cloud bucket | Persistent data |
+
+### Example Dependency Diagram
+
+```mermaid
+graph TD;
+    FE[Front-end (Flask Web UI)] --> MCP[MCP Controller]
+    MCP --> SG[Script Generator Agent]
+    MCP --> AN[Analyzer Agent]
+    MCP --> VZ[Visualizer Agent]
+    MCP --> RG[Report Generator Agent]
+    SG -->|outputs| Storage
+    AN -->|outputs| Storage
+    VZ -->|outputs| Storage
+    RG -->|outputs| Storage
+```
+
+---
+
 ## 3. Functional Requirements
 ### 3.1. Scanner Kit
 - **Windows-IIS Scanner (MVP)**:
@@ -126,4 +183,3 @@ The tool is a kit of modular components, with stack-specific scanners and shared
 - **Phase 2 (May 23-June 6, 2025)**: Add cloud scanning (Azure) and LAMP scanner.
 - **Phase 3 (June 6-July 4, 2025)**: Integrate Well-Architected analysis, IaC, and connection string parsing for database dependencies.
 - **Phase 4 (July 4 onward)**: Add chatbot and multi-cloud support (AWS, GCP).
-`````

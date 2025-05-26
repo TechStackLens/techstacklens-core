@@ -301,6 +301,39 @@ class DependencyAnalyzer:
                     }
                     dependency_graph["edges"].append(edge)
         
+        # Rails Example (new logic)
+        if 'rails_scan' in scan_results:
+            rails = scan_results['rails_scan']
+            # Rails app nodes
+            if 'apps' in rails:
+                for app in rails['apps']:
+                    node_id = f"rails:{app['name']}"
+                    dependency_graph["nodes"].append({
+                        "id": node_id,
+                        "type": "rails_app",
+                        "name": app['name'],
+                        "details": app
+                    })
+            # Gem nodes
+            if 'gems' in rails:
+                for gem in rails['gems']:
+                    node_id = f"rails:gem:{gem}"
+                    dependency_graph["nodes"].append({
+                        "id": node_id,
+                        "type": "gem",
+                        "name": gem,
+                        "details": {"gem": gem}
+                    })
+            # Example edge: app uses gems
+            if 'apps' in rails and 'gems' in rails:
+                for app in rails['apps']:
+                    for gem in rails['gems']:
+                        dependency_graph["edges"].append({
+                            "source": f"rails:{app['name']}",
+                            "target": f"rails:gem:{gem}",
+                            "type": "app_to_gem"
+                        })
+        
         # Infer cross-server dependencies
         self._infer_dependencies(dependency_graph, hosts_by_ip)
         
